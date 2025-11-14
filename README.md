@@ -1,28 +1,24 @@
-# Grade Generator
+# Professional Grade Generator
 
-**Description**  
-This project automates student grade calculation and transcript generation. It reads student scores, applies weights, calculates totals, assigns grades (A–F), and outputs a formatted transcript. It also supports archiving CSV files with timestamps for record-keeping.
+## Overview
+The **Professional Grade Generator** is a Python script designed to automate student grade calculations and generate a transcript-style report. Teachers only need to input grades (0-100) for a fixed set of subjects. All calculations, pass/fail determination, GPA computation, and resubmission lists are handled automatically.
 
-**How It Works**  
-1. Input student scores (via CSV or direct input).  
-2. Each score is weighted and summed to calculate the total.  
-3. Grades are assigned based on thresholds:  
-   - A: 90–100  
-   - B: 80–89  
-   - C: 70–79  
-   - D: 60–69  
-   - F: <60  
-4. A transcript is generated in a clean table format.  
-5. (Optional) CSV files can be archived automatically with timestamps using `organizer.sh`.
+## Features
+- Pre-defined subjects with automatic category (FA/SA) and weight assignment.
+- Calculates:
+  - **Final weight per subject** = (Grade × Weight) / 100
+  - **Formative Assessment (FA) total** out of 60
+  - **Summative Assessment (SA) total** out of 40
+  - **Total score** (FA + SA)
+  - **GPA** on a 0-5 scale (`Total Score / 20`)
+- Determines **overall status**:
+  - `PASSED` if total ≥ 50  
+  - `FAILED` if total < 50
+- Lists **subjects eligible for resubmission** (grade < 50), even if the overall result is PASS.
+- Generates a **professional transcript-style table** in the console.
+- Exports all results to a CSV file (`grades_report.csv`) for record-keeping.
 
-**Features**  
-- Handles multiple students and subjects.  
-- Auto-calculates total scores and grades.  
-- Generates readable transcript tables.  
-- Supports archiving CSV files for version tracking.
-
-**Usage**  
-1. Prepare a CSV file with student names, subjects, and scores.  
-2. Run the grade generator script:  
-```bash
-python3 grade_generator.py
+## Usage
+1. Run the script:
+   ```bash
+   python3 grade_generator.py
