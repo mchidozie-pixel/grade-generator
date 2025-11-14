@@ -1,110 +1,114 @@
 #!/usr/bin/python3
 """
-Grade Generator Calculator
-Transcript-style table view
+Professional Grade Generator
+Subjects fixed, categories & weights automatic.
+Teacher inputs only grades (0-100).
+Calculations:
+ - final weight per subject = (grade * weight) / 100
+ - FA total out of 60, SA total out of 40
+ - Total score = FA_total + SA_total
+ - GPA = Total score / 20 (scale 0-5)
+ - Status: PASS if Total >= 50 else FAIL
+ - Resubmission: list all subjects where grade < 50 (shown even if overall PASS)
 Author: Your Name
 """
 
 import csv
 
-def calculate_gpa(score):
-    if score >= 80:
-        return 4.0
-    elif score >= 70:
-        return 3.5
-    elif score >= 60:
-        return 3.0
-    elif score >= 50:
-        return 2.5
-    else:
-        return 0.0
+# Fixed subject -> (Category, Weight)
+SUBJECTS = {
+    "Mathematics": ("FA", 30),
+    "English": ("FA", 10),
+    "Biology": ("FA", 20),
+    "Physics": ("SA", 15),
+    "Computer Science": ("SA", 25)
+}
 
-assignments = []
+PASS_THRESHOLD = 50.0  # total score threshold for pass
 
-print("GRADE GENERATOR CALCULATOR")
-print("Type 'done' at any time to finish.\n")
+def calculate_gpa(total_score):
+    """
+    GPA as used in your sheet: GPA = total_score / 20
+    (Total score max = 100 -> GPA max = 5.0)
+    """
+    return total_score / 20.0
 
-while True:
-    name = input("Enter assignment name (or 'done'): ").strip()
-    if name.lower() == "done":
-        break
-
-    # CATEGORY INPUT VALIDATION
-    while True:
-        category = input("Enter category (FA/SA): ").upper().strip()
-        if category in ["FA", "SA"]:
-            break
-        print("Invalid input! Please enter only 'FA' or 'SA'.")
-
-    # GRADE INPUT VALIDATION
+def input_grade(subject):
+    """Prompt teacher for a grade between 0 and 100 for a given subject."""
     while True:
         try:
-            grade = float(input("Enter grade (0–100): "))
+            raw = input(f"Enter grade for {subject} (0-100): ").strip()
+            grade = float(raw)
             if 0 <= grade <= 100:
-                break
-            print("Grade must be between 0 and 100.")
+                return grade
+            print("Grade must be between 0 and 100. Try again.")
         except ValueError:
-            print("Invalid input! Please enter a number.")
+            print("Invalid input. Please enter a number between 0 and 100.")
 
-    # WEIGHT INPUT VALIDATION
-    while True:
-        try:
-            weight = float(input("Enter weight: "))
-            if weight >= 0:
-                break
-            print("Weight must be a positive number.")
-        except ValueError:
-            print("Invalid input! Please enter a number.")
+def format_row(name, cat, grade, weight, final_w):
+    return f"| {name:<18} | {cat:^6} | {grade:>6.2f} | {weight:>6} | {final_w:>10.2f} |"
 
-    weighted_score = (grade * weight) / 100
+def main():
+    print("\nPROFESSIONAL GRADE GENERATOR\n")
+    print("Subjects (teacher only inputs grades):")
+    for i, subj in enumerate(SUBJECTS.keys(), start=1):
+        print(f"  {i}. {subj}")
+    print("\nEnter grades for each subject.\n")
 
-    assignments.append({
-        "Assignment": name,
-        "Category": category,
-        "Grade": grade,
-        "Weight": weight,
-        "Weighted": weighted_score
-    })
+    # Collect grades and compute final weight per subject
+    records = []
+    for subj, (cat, weight) in SUBJECTS.items():
+        grade = input_grade(subj)
+        final_weight = (grade * weight) / 100.0
+        records.append({
+            "Subject": subj,
+            "Category": cat,
+            "Grade": grade,
+            "Weight": weight,
+            "FinalWeight": final_weight
+        })
 
-    # DISPLAY UPDATED TABLE
-    print("\nUPDATED TABLE")
-    print("-------------------------------------------------------------------")
-    print("| Assignment            | Category | Grade | Weight | Weighted %  |")
-    print("-------------------------------------------------------------------")
-    for a in assignments:
-        print(f"| {a['Assignment']:<22} | {a['Category']:^8} | {a['Grade']:^5} | {a['Weight']:^6} | {a['Weighted']:^11.2f} |")
-    print("-------------------------------------------------------------------\n")
+    # Calculate FA and SA totals
+    fa_total = sum(r["FinalWeight"] for r in records if r["Category"] == "FA")
+    sa_total = sum(r["FinalWeight"] for r in records if r["Category"] == "SA")
+    total_score = fa_total + sa_total
+    gpa = calculate_gpa(total_score)
+    status = "PASSED" if total_score >= PASS_THRESHOLD else "FAILED"
 
-# ----- FINAL CALCULATIONS -----
-fa_total_weight = sum(a["Weight"] for a in assignments if a["Category"] == "FA")
-sa_total_weight = sum(a["Weight"] for a in assignments if a["Category"] == "SA")
+    # Resubmission list: every subject with grade < 50
+    resubjects = [r["Subject"] for r in records if r["Grade"] < 50]
 
-fa_score = sum(a["Weighted"] for a in assignments if a["Category"] == "FA")
-sa_score = sum(a["Weighted"] for a in assignments if a["Category"] == "SA")
+    # Print a professional transcript-style table
+    print("\n" + "-"*68)
+    print("| Subject             | Cat.   | Grade  | Weight | Final weight |")
+    print("-"*68)
+    for r in records:
+        print(format_row(r["Subject"], r["Category"], r["Grade"], r["Weight"], r["FinalWeight"]))
+    print("-"*68)
+    print(f"{'Formatives (60)':<48} {fa_total:>10.2f}")
+    print(f"{'Summatives (40)':<48} {sa_total:>10.2f}")
+    print("-"*68)
+    print(f"{'TOTAL':<48} {total_score:>10.2f}")
+    print(f"{'GPA (Total/20)':<48} {gpa:>10.4f}")
+    print("-"*68)
 
-fa_percentage = (fa_score / fa_total_weight * 60) if fa_total_weight > 0 else 0
-sa_percentage = (sa_score / sa_total_weight * 40) if sa_total_weight > 0 else 0
+    # Status and resubmission output (styled plain text)
+    print("\nSTATUS:")
+    print(f"  Overall result: {status}")
+    if resubjects:
+        print("  Available for resubmission:")
+        for s in resubjects:
+            print(f"   - {s}")
+    else:
+        print("  Available for resubmission: None")
 
-final_grade = fa_percentage + sa_percentage
-gpa = calculate_gpa(final_grade)
-status = "PASSED" if final_grade >= 50 else "FAILED"
-resub = "None" if status == "PASSED" else "Lowest scoring FA/SA assignment"
+    # Save CSV
+    csv_filename = "grades_report.csv"
+    with open(csv_filename, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["Subject", "Category", "Grade", "Weight", "FinalWeight"])
+        writer.writeheader()
+        writer.writerows(records)
+    print(f"\nCSV exported: {csv_filename}\n")
 
-print("\nFINAL RESULTS")
-print("---------------------------------------------------")
-print(f"Formative Total (FA): {fa_percentage:.2f} / 60")
-print(f"Summative Total (SA): {sa_percentage:.2f} / 40")
-print("---------------------------------------------------")
-print(f"Final Grade: {final_grade:.2f} / 100")
-print(f"GPA: {gpa:.2f}")
-print(f"Status: {status}")
-print(f"Resubmission: {resub}")
-print("---------------------------------------------------")
-
-# ----- SAVE TO CSV -----
-with open("grades.csv", "w", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=["Assignment", "Category", "Grade", "Weight", "Weighted"])
-    writer.writeheader()
-    writer.writerows(assignments)
-
-print("\nCSV saved as grades.csv")
+if __name__ == "__main__":
+    main()
