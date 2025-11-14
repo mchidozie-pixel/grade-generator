@@ -19,7 +19,6 @@ def calculate_gpa(score):
     else:
         return 0.0
 
-
 assignments = []
 
 print("GRADE GENERATOR CALCULATOR")
@@ -30,9 +29,32 @@ while True:
     if name.lower() == "done":
         break
 
-    category = input("Enter category (FA/SA): ").upper().strip()
-    grade = float(input("Enter grade (0–100): "))
-    weight = float(input("Enter weight: "))
+    # CATEGORY INPUT VALIDATION
+    while True:
+        category = input("Enter category (FA/SA): ").upper().strip()
+        if category in ["FA", "SA"]:
+            break
+        print("Invalid input! Please enter only 'FA' or 'SA'.")
+
+    # GRADE INPUT VALIDATION
+    while True:
+        try:
+            grade = float(input("Enter grade (0–100): "))
+            if 0 <= grade <= 100:
+                break
+            print("Grade must be between 0 and 100.")
+        except ValueError:
+            print("Invalid input! Please enter a number.")
+
+    # WEIGHT INPUT VALIDATION
+    while True:
+        try:
+            weight = float(input("Enter weight: "))
+            if weight >= 0:
+                break
+            print("Weight must be a positive number.")
+        except ValueError:
+            print("Invalid input! Please enter a number.")
 
     weighted_score = (grade * weight) / 100
 
@@ -44,18 +66,16 @@ while True:
         "Weighted": weighted_score
     })
 
+    # DISPLAY UPDATED TABLE
     print("\nUPDATED TABLE")
     print("-------------------------------------------------------------------")
     print("| Assignment            | Category | Grade | Weight | Weighted %  |")
     print("-------------------------------------------------------------------")
-
     for a in assignments:
         print(f"| {a['Assignment']:<22} | {a['Category']:^8} | {a['Grade']:^5} | {a['Weight']:^6} | {a['Weighted']:^11.2f} |")
-
     print("-------------------------------------------------------------------\n")
 
 # ----- FINAL CALCULATIONS -----
-
 fa_total_weight = sum(a["Weight"] for a in assignments if a["Category"] == "FA")
 sa_total_weight = sum(a["Weight"] for a in assignments if a["Category"] == "SA")
 
@@ -82,7 +102,6 @@ print(f"Resubmission: {resub}")
 print("---------------------------------------------------")
 
 # ----- SAVE TO CSV -----
-
 with open("grades.csv", "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=["Assignment", "Category", "Grade", "Weight", "Weighted"])
     writer.writeheader()
