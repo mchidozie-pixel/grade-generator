@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 """
-Fixed grade-generator.py
+Enhanced Grade Generator
 - Requires assignment name (non-empty)
 - Validates category, grade, weight
-- Enforces FA total = 60 and SA total = 40 (with options to edit/view/normalize)
-- Bugfixes: option 2 (view) and option 1 (edit) work reliably and recalc totals immediately
-- CSV export as Assignment,Category,Grade,Weight
+- Auto-normalizes FA total = 60 and SA total = 40 if requested
+- Calculates weighted contributions
+- Correct PASS/FAIL logic
+- CSV export
 """
 
 import csv
@@ -48,14 +49,14 @@ def input_weight():
         except ValueError:
             print("Enter a valid number for weight.")
 
-def print_assignments_with_index(assignments):
+def print_assignments(assignments):
     if not assignments:
         print("\nNo assignments yet.\n")
         return
     print("\nCurrent assignments:")
     for i, a in enumerate(assignments, start=1):
         print(f"{i}. {a['Assignment']} | {a['Category']} | Grade: {a['Grade']} | Weight: {a['Weight']}")
-    print()  # blank line
+    print()
 
 def normalize(items, expected_total):
     if not items:
@@ -71,12 +72,9 @@ def normalize(items, expected_total):
         for it in items:
             it["Weight"] = round(it["Weight"] * scale, 2)
 
-
-
 def edit_weights_loop(assignments):
-    """Allow the user to edit weights until FA==60 and SA==40 or they choose to proceed."""
+    """Edit or normalize weights until FA=60 and SA=40."""
     while True:
-        # compute totals (recompute each loop so edits take effect immediately)
         fa_weight_total = sum(a["Weight"] for a in assignments if a["Category"] == "FA")
         sa_weight_total = sum(a["Weight"] for a in assignments if a["Category"] == "SA")
         total = fa_weight_total + sa_weight_total
@@ -91,54 +89,54 @@ def edit_weights_loop(assignments):
             print("Weights match expected distribution (FA=60, SA=40). Proceeding...\n")
             return assignments
 
-        # Not matching; give options
-        print("Weights do not match the required distribution (FA must sum to 60 and SA to 40).")
+        print("Weights do not match expected totals.")
         print("Options:")
         print("  1) Edit a weight")
-        print("  2) Proceed anyway (not recommended)")
-        choice = input("Choose an option (1/2): ").strip()
+        print("  2) Auto-normalize weights")
+        print("  3) Proceed anyway (not recommended)")
+        choice = input("Choose an option (1/2/3): ").strip()
 
         if choice == "1":
-            # EDIT: allow selecting an assignment and updating its weight
             if not assignments:
                 print("No assignments to edit.")
                 continue
-            print_assignments_with_index(assignments)
+            print_assignments(assignments)
             try:
-                idx_raw = input("Enter assignment number to edit weight (or 'c' to cancel): ").strip()
+                idx_raw = input("Enter assignment number to edit (or 'c' to cancel): ").strip()
                 if idx_raw.lower() == 'c':
                     continue
                 idx = int(idx_raw)
             except ValueError:
-                print("Invalid entry. Enter a number or 'c'.")
+                print("Invalid entry.")
                 continue
-
             if not (1 <= idx <= len(assignments)):
                 print("Invalid assignment number.")
                 continue
-
-            # ask for new weight (validated)
             new_w = input_weight()
             assignments[idx-1]["Weight"] = new_w
-            print(f"Weight for '{assignments[idx-1]['Assignment']}' updated to {new_w}.\n")
-            # loop will recalc totals at top
+            print(f"Weight for '{assignments[idx-1]['Assignment']}' updated.\n")
             continue
 
         elif choice == "2":
+            normalize([a for a in assignments if a["Category"]=="FA"], EXPECTED_FA_TOTAL)
+            normalize([a for a in assignments if a["Category"]=="SA"], EXPECTED_SA_TOTAL)
+            print("Weights auto-normalized.\n")
+            continue
+
+        elif choice == "3":
             confirm = input("Are you sure you want to proceed with incorrect totals? (y/n): ").strip().lower()
             if confirm == "y":
                 return assignments
             else:
                 continue
         else:
-            print("Invalid option. Choose 1, or 2.")
+            print("Invalid option.")
             continue
 
 def main():
     print("=== GRADE GENERATOR ===\n")
     assignments = []
 
-    # Input loop
     while True:
         name = input_subject()
         category = input_category()
@@ -160,32 +158,28 @@ def main():
         print("No assignments entered. Exiting.")
         return
 
-    # Let user edit/auto-normalize/view weights until distribution is acceptable
     assignments = edit_weights_loop(assignments)
 
-    # Calculate contributions and totals
+    # Calculate weighted contributions
     for a in assignments:
-        a["FinalWeight"] = (a["Grade"] / 100.0) * a["Weight"]
+        a["FinalWeight"] = (a["Grade"]/100) * a["Weight"]
 
-    fa_total = sum(a["FinalWeight"] for a in assignments if a["Category"] == "FA")
-    sa_total = sum(a["FinalWeight"] for a in assignments if a["Category"] == "SA")
-
-    fa_weight_total = sum(a["Weight"] for a in assignments if a["Category"] == "FA")
-    sa_weight_total = sum(a["Weight"] for a in assignments if a["Category"] == "SA")
-
-    final_grade = fa_total + sa_total  # out of 100 when weights sum to 100
+    fa_total = sum(a["FinalWeight"] for a in assignments if a["Category"]=="FA")
+    sa_total = sum(a["FinalWeight"] for a in assignments if a["Category"]=="SA")
+    fa_weight_total = sum(a["Weight"] for a in assignments if a["Category"]=="FA")
+    sa_weight_total = sum(a["Weight"] for a in assignments if a["Category"]=="SA")
+    final_grade = fa_total + sa_total
     gpa = (final_grade / 100.0) * 5.0
 
-    # PASS/FAIL based on ALU rule: must score >=50% in BOTH categories
-    fa_pass = (fa_total >= (PASS_THRESHOLD_PERCENT * fa_weight_total)) if fa_weight_total > 0 else True
-    sa_pass = (sa_total >= (PASS_THRESHOLD_PERCENT * sa_weight_total)) if sa_weight_total > 0 else True
-    status = "PASS" if (fa_pass and sa_pass) else "FAIL"
+    # Correct PASS/FAIL: must meet 50% of each category (if category exists) AND overall >=50
+    fa_pass = (fa_total >= (PASS_THRESHOLD_PERCENT * fa_weight_total)) if fa_weight_total>0 else True
+    sa_pass = (sa_total >= (PASS_THRESHOLD_PERCENT * sa_weight_total)) if sa_weight_total>0 else True
+    overall_pass = final_grade >= 50
+    status = "PASS" if (fa_pass and sa_pass and overall_pass) else "FAIL"
 
-    # Resubmission: list all subjects with grade < 50 (show even if overall PASS)
-    failed_assignments = [a["Assignment"] for a in assignments if a["Grade"] < 50]
+    failed_assignments = [a["Assignment"] for a in assignments if a["Grade"]<50]
     resub = ", ".join(failed_assignments) if failed_assignments else "None"
 
-    # ---- Print summary in required format ----
     print("\n--- RESULTS ---")
     print(f"Total Formative: {fa_total:.2f} / {fa_weight_total:.0f}")
     print(f"Total Summative: {sa_total:.2f} / {sa_weight_total:.0f}")
@@ -195,14 +189,12 @@ def main():
     print(f"Status: {status}")
     print(f"Resubmission: {resub}")
 
-    # ---- Write CSV ----
     try:
-        with open("grades.csv", "w", newline="") as f:
+        with open("grades.csv","w",newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["Assignment", "Category", "Grade", "Weight"])
+            writer.writerow(["Assignment","Category","Grade","Weight"])
             for a in assignments:
-                # write the values as entered (keep decimals if provided)
-                writer.writerow([a["Assignment"], a["Category"], a["Grade"], a["Weight"]])
+                writer.writerow([a["Assignment"],a["Category"],a["Grade"],a["Weight"]])
         print("\ngrades.csv created successfully!")
     except Exception as e:
         print(f"Failed to write CSV: {e}")
