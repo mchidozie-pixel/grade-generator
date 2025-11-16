@@ -1,15 +1,23 @@
 #!/bin/bash
 # organizer.sh
-# Archive CSV files with timestamps
+# Improved CSV (or file) archiver with timestamps
 
-mkdir -p archive
+# Create archive folder if it doesn't exist
+ARCHIVE_DIR="archive"
+mkdir -p "$ARCHIVE_DIR"
 
-timestamp=$(date +"%Y%m%d_%H%M%S")
+# Get current timestamp
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
+# Loop through all CSV files in current directory
+shopt -s nullglob
 for file in *.csv; do
-    if [ -e "$file" ]; then
-        new_name="${file%.*}_$timestamp.csv"
-        mv "$file" "archive/$new_name"
-        echo "Moved $file → archive/$new_name"
+    # Check if file exists and is not empty
+    if [[ -f "$file" ]]; then
+        NEW_NAME="${file%.*}_$TIMESTAMP.csv"
+        mv "$file" "$ARCHIVE_DIR/$NEW_NAME"
+        echo "Moved $file → $ARCHIVE_DIR/$NEW_NAME"
     fi
 done
+
+echo "All CSV files have been archived."
